@@ -1,0 +1,118 @@
+package com.example;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Collectors;
+
+class Employee {
+    int id;
+    String firstName;
+    String lastName;
+    double salary;
+    Integer managerId;
+    List<Employee> subordinates = new ArrayList<>();
+
+    public Employee(int id, String firstName, String lastName, double salary, Integer managerId) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.salary = salary;
+        this.managerId = managerId;
+    }
+}
+
+public class EmployeeAnalyzer {
+    private Map<Integer, Employee> employees = new HashMap<>();
+    private Employee ceo;
+
+    public void loadEmployees(String filePath) throws IOException {
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
+        for (String line : lines.subList(1, lines.size())) { // Skipping header
+            String[] parts = line.split(",");
+            int id = Integer.parseInt(parts[0]);
+            String firstName = parts[1];
+            String lastName = parts[2];
+            double salary = Double.parseDouble(parts[3]);
+            Integer managerId = parts.length > 4 && !parts[4].isEmpty() ? Integer.parseInt(parts[4]) : null;
+            Employee employee = new Employee(id, firstName, lastName, salary, managerId);
+            employees.put(id, employee);
+        }
+        buildHierarchy();
+    }
+
+    private void buildHierarchy() {
+        for (Employee emp : employees.values()) {
+            if (emp.managerId == null) {
+                ceo = emp;
+            } else {
+                employees.get(emp.managerId).subordinates.add(emp);
+            }
+        }
+    }
+
+    public void analyzeSalaries() {
+        for (Employee manager : employees.values()) {
+            if (!manager.subordinates.isEmpty()) {
+                double avgSubordinateSalary = manager.subordinates.stream()
+                        .mapToDouble(e -> e.salary).average().orElse(0);
+                double minAllowed = avgSubordinateSalary * 1.2;
+                double maxAllowed = avgSubordinateSalary * 1.5;
+                if (manager.salary < minAllowed) {
+                    System.out.printf("Manager %s earns %.2f less than allowed.%n", manager.firstName, minAllowed - manager.salary);
+                } else if (manager.salary > maxAllowed) {
+                    System.out.printf("Manager %s earns %.2f more than allowed.%n", manager.firstName, manager.salary - maxAllowed);
+                }
+            }
+        }
+    }
+
+    public void analyzeReportingDepth() {
+        for (Employee emp : employees.values()) {
+            int depth = getReportingDepth(emp);
+            if (depth > 4) {
+                System.out.printf("Employee %s has %d managers above them, exceeding the limit by %d.%n",
+                        emp.firstName, depth, depth - 4);
+            }
+        }
+    }
+
+    private int getReportingDepth(Employee emp) {
+        int depth = 0;
+        while (emp.managerId != null) {
+            emp = employees.get(emp.managerId);
+            depth++;
+        }
+        return depth;
+    }
+
+    // Get hierarchy path from employee to CEO
+    public static List<String> getHierarchy(int employeeId) {
+        List<String> hierarchy = new LinkedList<>();
+        Employee current = employeeMap.get(employeeId);
+
+        while (current != null) {
+            hierarchy.add(0, current.getFullName());  // Add to the front of the list
+            current = current.managerId != null ? employeeMap.get(current.managerId) : null;
+        }
+
+        return hierarchy;
+    }
+
+    // Print hierarchy for a specific employee
+    public static void printHierarchy(int employeeId) {
+        List<String> hierarchy = getHierarchy(employeeId);
+        System.out.println(hierarchy.get(0) + "'s hierarchy: " + String.join(" -> ", hierarchy));
+    }
+
+    public static void main(String[] args) throws IOException {
+        EmployeeAnalyzer analyzer = new EmployeeAnalyzer();
+        analyzer.loadEmployees("src/main/resources/employees1.csv");
+        analyzer.analyzeSalaries();
+        analyzer.analyzeReportingDepth();
+        System.out.println("Hierarchy from each employee to the CEO:\n");
+        for (Employee emp : employeeMap.values()) {
+            printHierarchy(emp.id);
+        }
+    }
+}

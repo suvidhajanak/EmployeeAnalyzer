@@ -1,0 +1,142 @@
+package com.example;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+
+// Class to analyze employee data, including hierarchy and salary structure
+public class EmployeeAnalyzer {
+    private Map<Integer, Employee> employees = new HashMap<>();
+    private Employee ceo;
+
+    public Map<Integer, Employee> getEmployees() {
+        return employees;
+    }
+
+    public Employee getCeo() {
+        return ceo;
+    }
+
+    public void setCeo(Employee ceo) { 
+        this.ceo = ceo; 
+    }
+
+    // Method to load employee data from a CSV file
+    public void loadEmployees(String filePath) throws IOException {
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
+        
+        // Skipping the header row and processing each line
+        for (String line : lines.subList(1, lines.size())) {
+            String[] parts = line.split(",");
+            int id = Integer.parseInt(parts[0]);
+            String firstName = parts[1];
+            String lastName = parts[2];
+            double salary = Double.parseDouble(parts[3]);
+            Integer managerId = parts.length > 4 && !parts[4].isEmpty() ? Integer.parseInt(parts[4]) : null;
+
+            // Creating an Employee object and adding it to the employee map
+            Employee employee = new Employee(id, firstName, lastName, salary, managerId);
+            employees.put(id, employee);
+        }
+        
+        // Building the organizational hierarchy
+        buildHierarchy();
+    }
+
+    // Method to build the employee reporting hierarchy
+    private void buildHierarchy() {
+        for (Employee emp : employees.values()) {
+            if (emp.getManagerId() == null) {
+                setCeo(emp); // Identifying the CEO (top-level employee)
+            } else {
+                employees.get(emp.getManagerId()).getSubordinates().add(emp); // Adding subordinates to managers
+            }
+        }
+    }
+
+    // Method to analyze salaries and check if managers' salaries are within allowed range
+    public void analyzeSalaries() {
+        for (Employee manager : employees.values()) {
+            if (!manager.getSubordinates().isEmpty()) {
+                double avgSubordinateSalary = manager.getSubordinates().stream()
+                        .mapToDouble(e -> e.getSalary()).average().orElse(0);
+                
+                // Defining the acceptable salary range for a manager
+                double minAllowed = avgSubordinateSalary * 1.2;
+                double maxAllowed = avgSubordinateSalary * 1.5;
+
+                // Checking if the manager's salary is below or above the allowed range
+                if (manager.getSalary() < minAllowed) {
+                    System.out.printf("Manager %s earns %.2f less than allowed.%n", manager.getFirstName(), minAllowed - manager.getSalary());
+                } else if (manager.getSalary() > maxAllowed) {
+                    System.out.printf("Manager %s earns %.2f more than allowed.%n", manager.getFirstName(), manager.getSalary() - maxAllowed);
+                }
+            }
+        }
+    }
+
+    // Method to analyze the depth of reporting hierarchy
+    public void analyzeReportingDepth() {
+        for (Employee emp : employees.values()) {
+            int depth = getReportingDepth(emp);
+            
+            // Checking if an employee has more than 4 managers in the hierarchy
+            if (depth > 4) {
+                System.out.printf("Employee %s has %d managers above them, exceeding the limit by %d.%n",
+                        emp.getFirstName(), depth, depth - 4);
+            }
+        }
+    }
+
+    // Method to calculate the reporting depth of an employee
+    private int getReportingDepth(Employee emp) {
+        int depth = 0;
+        while (emp.getManagerId() != null) {
+            emp = employees.get(emp.getManagerId());
+            depth++;
+        }
+        return depth;
+    }
+
+    // Method to get the hierarchy path from an employee to the CEO
+    public List<String> getHierarchy(int employeeId) {
+        List<String> hierarchy = new LinkedList<>();
+        Employee current = employees.get(employeeId);
+
+        // Traversing the hierarchy up to the CEO
+        while (current != null) {
+            hierarchy.add(0, current.getFullName()); // Adding employee names in reverse order
+            current = current.getManagerId() != null ? employees.get(current.getManagerId()) : null;
+        }
+
+        return hierarchy;
+    }
+
+    // Method to print the reporting hierarchy for each employee
+    public void printHierarchy() {
+        System.out.println("Hierarchy from each employee to the CEO:\n");
+        
+        for (Employee emp : employees.values()) {
+            List<String> hierarchy = getHierarchy(emp.getId());
+            System.out.println(emp.getFullName() + "'s hierarchy: " + String.join(" -> ", hierarchy));
+        }
+    }
+
+    // Main method to run the EmployeeAnalyzer program
+    public static void main(String[] args) throws IOException {
+        EmployeeAnalyzer analyzer = new EmployeeAnalyzer();
+
+        // Loading employee data from a CSV file
+        analyzer.loadEmployees("src/main/resources/employees1.csv");
+
+        // Performing salary and reporting hierarchy analysis
+        analyzer.analyzeSalaries();
+        analyzer.analyzeReportingDepth();
+
+        // Printing the employee hierarchy
+        analyzer.printHierarchy();
+    }
+}
