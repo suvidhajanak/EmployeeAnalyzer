@@ -8,8 +8,6 @@ By following this exercise, you will:
 ✅ Understand **employee-manager relationships** in an organization.  
 ✅ Implement **salary validation logic** using Java collections.  
 ✅ Use **JUnit to write test cases**.  
-✅ Automate project documentation using a **README.md generator**.  
-✅ Work with **GitHub for version control**.  
 
 ---
 
