@@ -26,7 +26,7 @@ Make sure you have the following installed on your system:
 ### **1️⃣ Clone the Repository from GitHub**  
 Open **VS Code** and run the following commands in the terminal:  
 ```sh
-git clone https://github.com/YOUR_USERNAME/EmployeeAnalyzer.git
+git clone https://github.com/suvidhajanak/EmployeeAnalyzer.git
 cd EmployeeAnalyzer
 ```
 
